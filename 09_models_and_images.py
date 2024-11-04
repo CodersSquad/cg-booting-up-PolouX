@@ -5,7 +5,7 @@ import sys
 import glm
 import moderngl
 import pygame
-from objloader import Obj
+import pywavefront
 from PIL import Image
 
 os.environ['SDL_WINDOWS_DPI_AWARENESS'] = 'permonitorv2'
@@ -18,23 +18,26 @@ class ImageTexture:
     def __init__(self, path):
         self.ctx = moderngl.get_context()
 
-        img = Image.open(path).convert('RGBA')
-        self.texture = self.ctx.texture(img.size, 4, img.tobytes())
-        self.sampler = self.ctx.sampler(texture=self.texture)
-
-    def use(self):
-        self.sampler.use()
+        try:
+            img = Image.open(path).convert('RGBA')
+            self.texture = self.ctx.texture(img.size, 4, img.tobytes())
+            self.sampler = self.ctx.sampler(texture=self.texture)
+        except Exception as e:
+            print(f"Error loading image '{path}': {e}")
 
 
 class ModelGeometry:
     def __init__(self, path):
         self.ctx = moderngl.get_context()
 
-        obj = Obj.open(path)
-        self.vbo = self.ctx.buffer(obj.pack('vx vy vz nx ny nz tx ty'))
+        # Cargar el objeto usando pywavefront
+        obj = pywavefront.Wavefront(path, collect_faces=True)
+        vertices = []
+        for name, material in obj.materials.items():
+            vertices.extend(material.vertices)
 
-    def vertex_array(self, program):
-        return self.ctx.vertex_array(program, [(self.vbo, '3f 12x 2f', 'in_vertex', 'in_uv')])
+        # Crear un buffer con los vértices cargados
+        self.vbo = self.ctx.buffer(np.array(vertices, dtype='f4').tobytes())
 
 
 class Mesh:
@@ -106,7 +109,8 @@ class Scene:
             ''',
         )
 
-        self.texture = ImageTexture('examples/data/textures/crate.png')
+        # Cambia la ruta a 'tec.png'
+        self.texture = ImageTexture('C:/Users/PolouX/Desktop/Escuela/Modeling/Challenges/Challenge1/tec.png')
 
         self.car_geometry = ModelGeometry('examples/data/models/lowpoly_toy_car.obj')
         self.car = Mesh(self.program, self.car_geometry)
